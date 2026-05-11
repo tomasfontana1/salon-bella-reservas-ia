@@ -1,0 +1,1004 @@
+{
+  "name": "M3 Asistente Ia",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "asistente-ia",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -144,
+        -320
+      ],
+      "id": "277189aa-e8ec-41a7-bc93-cf757b2c7174",
+      "name": "IA Reservas (chat)",
+      "webhookId": "REDACTED_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "let body = $json.body ?? $json;\n\n// Si llega como text/plain, puede venir string\nif (typeof body === \"string\") {\n  try { body = JSON.parse(body); }\n  catch { body = {}; }\n}\n\nconst mensaje = (body.mensaje || body.message || body.text || \"\").toString().trim();\nconst history = Array.isArray(body.history) ? body.history : [];\nconst canal_reserva = (body.canal_reserva || \"asistente_ia\").toString();\n\nreturn [{\n  json: { mensaje, history, canal_reserva }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        -320
+      ],
+      "id": "4cf3db9e-ebad-4117-b538-7bc49036ca20",
+      "name": "Parsear entrada"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "servicios",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "activo",
+              "condition": "is",
+              "keyValue": "={{true}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        240,
+        -320
+      ],
+      "id": "cb912d51-e919-487b-8407-3c519adf5352",
+      "name": "Traer servicios activos",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=hoy_local: {{ $json.hoy_local }}\n\nservicios_activos (id|nombre):\n{{ $json.servicios_compactos }}\n\nhistorial:\n{{ $json.history_text }}\n\nmensaje_actual:\n{{ $json.mensaje }}",
+        "options": {
+          "systemMessage": "=Sos el asistente de reservas de Sallon Bella (Argentina).\nObjetivo: extraer datos del chat y devolver SOLO JSON válido (sin texto extra).\n\nServicios válidos: elegí SOLO de la lista \"servicios_activos (id|nombre)\". No inventes.\nHorario: Lun–Vie 09:00–20:00, Sáb 09:00–17:00, Dom cerrado. Turnos cada 30 min (HH:00/HH:30).\nZona horaria: America/Argentina/Buenos_Aires.\n\nUsá el \"historial\" para NO pedir datos que ya estén.\nPedí 1–2 datos por vez.\n\nRespondé SIEMPRE en este JSON estricto:\n\n{\n  \"intencion\": \"reservar\" | \"consultar_servicios\" | \"otro\",\n  \"nombre_cliente\": \"\",\n  \"telefono\": \"\",\n  \"email\": \"\",\n  \"servicio_nombre\": \"\",\n  \"fecha\": \"YYYY-MM-DD\",\n  \"hora\": \"HH:MM\",\n  \"notas\": \"\",\n  \"faltantes\": [],\n  \"pregunta\": \"\",\n  \"listo_para_reservar\": false\n}\n\nSi el mensaje_actual es una confirmación breve como \"si\", \"sí\", \"dale\", \"ok\", \"perfecto\" o similar, interpretalo usando el historial y conservá servicio, fecha y hora ya mencionados. No borres datos ya detectados solo porque el mensaje actual no los repite.\n\nSi todavía faltan nombre_cliente, telefono o email, pedilos para confirmar la reserva.\nEl email se usa para enviar el recordatorio automático del turno.\nNo marques listo_para_reservar=true hasta tener servicio, fecha, hora, nombre_cliente, telefono y email.\n\nSi el usuario menciona un día relativo o semanal como “lunes”, “viernes”, “sábado” o “mañana”, convertí esa referencia a una fecha exacta YYYY-MM-DD usando la zona horaria America/Argentina/Buenos_Aires.\nNo dejes solo el nombre del día.\nNo desplaces el día por UTC.\nSi no podés resolver la fecha exacta con seguridad, pedí aclaración.\n\nSi el usuario dice algo como “viernes después de las 17”, proponé una hora válida en bloques de 30 minutos, por ejemplo 17:30, pero solo si la fecha quedó correctamente resuelta.\n\nEl sistema gestiona un solo servicio por reserva.\nSi el usuario pide dos o más servicios en el mismo mensaje, no intentes reservar ambos juntos.\nEn ese caso:\n- detectá que la intención sigue siendo \"reservar\"\n- no completes \"servicio_nombre\" con uno arbitrario si el usuario mencionó varios\n- dejá \"listo_para_reservar\": false\n- completá \"faltantes\" con [\"servicio\"] si hace falta forzar elección\n- en \"pregunta\" pedile amablemente que elija cuál quiere reservar primero\n\nEjemplo:\nSi el usuario dice \"quiero corte y maquillaje\", devolvé un JSON que indique que falta definir un único servicio y preguntá cuál quiere agendar primero.\n\nSi el usuario consulta por servicios disponibles, devolvé:\n- \"intencion\": \"consultar_servicios\"\n- \"listo_para_reservar\": false\n- y usá \"pregunta\" para responder la consulta de forma breve\n\nSi el usuario escribe algo que no corresponde a una reserva ni a una consulta de servicios, devolvé:\n- \"intencion\": \"otro\"\n- \"listo_para_reservar\": false\n- y una \"pregunta\" breve para reencauzar la conversación."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        592,
+        -320
+      ],
+      "id": "23ace23b-3d03-4c72-b6e0-dafa2d23075c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {
+          "maxOutputTokens": 1000,
+          "temperature": 0.2,
+          "topP": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        576,
+        -144
+      ],
+      "id": "2d29421e-b3c8-49b9-9baf-8f708a5c7e5b",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let data = $json;\n\n// Si llega como string, intentar parsear\nif (typeof data === \"string\") {\n  try {\n    data = JSON.parse(data);\n  } catch (e) {\n    throw new Error(\"Salida IA inválida: no se pudo parsear JSON\");\n  }\n}\n\nconst norm = (s = \"\") =>\n  s\n    .toString()\n    .toLowerCase()\n    .normalize(\"NFD\")\n    .replace(/[\\u0300-\\u036f]/g, \"\")\n    .replace(/\\s+/g, \" \")\n    .trim();\n\nconst onlyDigits = (s = \"\") => s.toString().replace(/\\D/g, \"\");\nconst cleanEmail = (s = \"\") => s.toString().trim().toLowerCase();\n\n// Servicios desde el nodo real\nconst servicios = $items(\"Traer servicios activos\").map(i => i.json);\n\n// Alias\nconst aliases = {\n  \"manicura\": \"manicure\",\n  \"manicuria\": \"manicure\",\n  \"manicure\": \"manicure\",\n  \"uñas\": \"manicure\",\n  \"unas\": \"manicure\",\n\n  \"coloracion\": \"coloración\",\n  \"coloración\": \"coloración\",\n  \"tintura\": \"coloración\",\n  \"tinte\": \"coloración\",\n  \"color\": \"coloración\",\n\n  \"corte\": \"corte\",\n  \"corte de pelo\": \"corte\",\n  \"corte de cabello\": \"corte\",\n  \"pelo\": \"corte\",\n  \"cabello\": \"corte\",\n\n  \"maquillaje\": \"maquillaje\",\n  \"makeup\": \"maquillaje\",\n  \"make up\": \"maquillaje\"\n};\n\nfunction resolverServicio(servicioNombre = \"\") {\n  const entradaNorm = norm(servicioNombre);\n  if (!entradaNorm) return null;\n\n  const canon = aliases[entradaNorm] || entradaNorm;\n\n  let match = servicios.find(s => {\n    const nombreNorm = norm(s.nombre || \"\");\n    return nombreNorm === canon || nombreNorm === entradaNorm;\n  });\n\n  if (!match) {\n    match = servicios.find(s => {\n      const nombreNorm = norm(s.nombre || \"\");\n      return nombreNorm.includes(canon) || canon.includes(nombreNorm);\n    });\n  }\n\n  return match || null;\n}\n\n// NUEVO: detectar múltiples servicios en el mismo mensaje / salida\nfunction detectarServiciosMultiples(texto = \"\") {\n  const t = norm(texto);\n  if (!t) return [];\n\n  const encontrados = [];\n\n  for (const servicio of servicios) {\n    const nombreServicio = norm(servicio.nombre || \"\");\n    if (!nombreServicio) continue;\n\n    // alias asociados a este servicio\n    const aliasesDelServicio = Object.entries(aliases)\n      .filter(([, valorCanonico]) => norm(valorCanonico) === nombreServicio)\n      .map(([alias]) => norm(alias));\n\n    const variantes = [...new Set([nombreServicio, ...aliasesDelServicio])];\n\n    const coincide = variantes.some(v => {\n      if (!v) return false;\n      return t.includes(v);\n    });\n\n    if (coincide) {\n      encontrados.push({\n        id: servicio.id,\n        nombre: servicio.nombre\n      });\n    }\n  }\n\n  // por si el modelo devolvió \"corte y maquillaje\", etc.\n  const unicos = [];\n  const vistos = new Set();\n\n  for (const s of encontrados) {\n    const clave = `${s.id}|${s.nombre}`;\n    if (!vistos.has(clave)) {\n      vistos.add(clave);\n      unicos.push(s);\n    }\n  }\n\n  return unicos;\n}\n\nfunction validarHorario(fecha = \"\", hora = \"\") {\n  if (!fecha || !hora) {\n    return { ok: true, motivo: \"\" };\n  }\n\n  const horaOk = /^([01]\\d|2[0-3]):(00|30)$/.test(hora);\n  if (!horaOk) {\n    return {\n      ok: false,\n      motivo: \"Los turnos solo están disponibles en bloques de 30 minutos.\"\n    };\n  }\n\n  const fechaBase = new Date(`${fecha}T12:00:00-03:00`);\n  if (Number.isNaN(fechaBase.getTime())) {\n    return {\n      ok: false,\n      motivo: \"La fecha ingresada no es válida.\"\n    };\n  }\n\n  const day = fechaBase.getDay();\n  const [hh, mm] = hora.split(\":\").map(Number);\n  const minutes = hh * 60 + mm;\n\n  if (day === 0) {\n    return {\n      ok: false,\n      motivo: \"El salón no abre los domingos.\"\n    };\n  }\n\n  if (day >= 1 && day <= 5) {\n    if (minutes < 540 || minutes > 1200) {\n      return {\n        ok: false,\n        motivo: \"Atendemos de lunes a viernes de 09:00 a 20:00.\"\n      };\n    }\n  }\n\n  if (day === 6) {\n    if (minutes < 540 || minutes > 1020) {\n      return {\n        ok: false,\n        motivo: \"Los sábados atendemos de 09:00 a 17:00.\"\n      };\n    }\n  }\n\n  const now = new Date();\n  const fechaElegida = new Date(`${fecha}T00:00:00-03:00`);\n\n  const esHoy =\n    fechaElegida.getFullYear() === now.getFullYear() &&\n    fechaElegida.getMonth() === now.getMonth() &&\n    fechaElegida.getDate() === now.getDate();\n\n  if (esHoy) {\n    const ahoraConMargen = new Date(now.getTime() + 15 * 60 * 1000);\n    const minutosActuales = ahoraConMargen.getHours() * 60 + ahoraConMargen.getMinutes();\n\n    if (minutes <= minutosActuales) {\n      return {\n        ok: false,\n        motivo: \"Ese horario ya pasó o está muy próximo. Elegí uno posterior.\"\n      };\n    }\n  }\n\n  return { ok: true, motivo: \"\" };\n}\n\n// Normalización base\ndata.intencion = (data.intencion || \"\").toString().trim().toLowerCase();\ndata.nombre_cliente = (data.nombre_cliente || \"\").toString().trim();\ndata.telefono = onlyDigits(data.telefono || \"\");\ndata.email = cleanEmail(data.email || \"\");\ndata.fecha = (data.fecha || \"\").toString().trim();\ndata.hora = (data.hora || \"\").toString().trim();\ndata.notas = (data.notas || \"\").toString().trim();\ndata.pregunta = (data.pregunta || \"\").toString().trim();\n\n// Servicio\nconst servicioEntrada = data.servicio_nombre || data.servicio || \"\";\nconst serviciosDetectados = detectarServiciosMultiples(servicioEntrada);\n\n// NUEVO: si detecta múltiples servicios, frenar acá\nif (data.intencion === \"reservar\" && serviciosDetectados.length > 1) {\n  data.servicio_nombre = \"\";\n  data.servicio_id = \"\";\n  data.profesional_id = \"\";\n  data.duracion_minutos = \"\";\n\n  data.fecha_hora =\n    data.fecha && data.hora\n      ? `${data.fecha}T${data.hora}:00-03:00`\n      : \"\";\n\n  const faltantes = [\"servicio\"];\n  if (!data.fecha) faltantes.push(\"fecha\");\n  if (!data.hora) faltantes.push(\"hora\");\n  if (!data.telefono) faltantes.push(\"telefono\");\n  if (!data.nombre_cliente) faltantes.push(\"nombre_cliente\");\n  if (!data.email) faltantes.push(\"email\");\n\n  data.faltantes = [...new Set(faltantes)];\n  data.listo_para_reservar = false;\n  data.pregunta = \"Por el momento puedo reservar un solo servicio por vez. ¿Cuál querés agendar primero?\";\n\n  return [{ json: data }];\n}\n\nconst servicioMatch = resolverServicio(servicioEntrada);\n\ndata.servicio_nombre = servicioMatch?.nombre ?? (servicioEntrada || \"\");\ndata.servicio_id = servicioMatch?.id ?? (data.servicio_id || \"\");\ndata.profesional_id = servicioMatch?.profesional_id ?? (data.profesional_id || \"\");\ndata.duracion_minutos = Number(\n  servicioMatch?.duracion_minutos ?? data.duracion_minutos ?? 60\n);\n\n// Validar horario\nconst validacionHorario = validarHorario(data.fecha, data.hora);\n\nif (!validacionHorario.ok) {\n  data.hora = \"\";\n  data.pregunta = `${validacionHorario.motivo} Decime un horario válido.`;\n}\n\ndata.fecha_hora =\n  data.fecha && data.hora\n    ? `${data.fecha}T${data.hora}:00-03:00`\n    : \"\";\n\n// Faltantes\nconst faltantes = [];\nif (!data.servicio_id) faltantes.push(\"servicio\");\nif (!data.fecha) faltantes.push(\"fecha\");\nif (!data.hora) faltantes.push(\"hora\");\nif (!data.telefono) faltantes.push(\"telefono\");\nif (!data.nombre_cliente) faltantes.push(\"nombre_cliente\");\nif (!data.email) faltantes.push(\"email\");\n\n// Validación email\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (data.email && !emailRegex.test(data.email)) {\n  data.email = \"\";\n  if (!faltantes.includes(\"email\")) faltantes.push(\"email\");\n  if (!data.pregunta) {\n    data.pregunta = \"Necesito un email válido para enviarte el recordatorio del turno.\";\n  }\n}\n\ndata.faltantes = faltantes;\n\ndata.listo_para_reservar =\n  data.intencion === \"reservar\" &&\n  faltantes.length === 0;\n\nif (!data.listo_para_reservar && !data.pregunta && data.intencion === \"reservar\") {\n  const etiquetas = {\n    servicio: \"el servicio\",\n    fecha: \"la fecha\",\n    hora: \"la hora\",\n    telefono: \"tu teléfono\",\n    nombre_cliente: \"tu nombre\",\n    email: \"tu email\"\n  };\n\n  const faltantesTexto = faltantes.map(f => etiquetas[f] || f).join(\", \");\n  data.pregunta = `Para confirmar tu reserva necesito ${faltantesTexto}.`;\n}\n\nreturn [{ json: data }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        -320
+      ],
+      "id": "fa6bac19-c2ee-438e-bf36-6de11a134298",
+      "name": "Normalizar IA"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "citas",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "fecha_hora",
+              "condition": "lt",
+              "keyValue": "={{ $node[\"Calcular ventana turno\"].json.fecha_fin }}"
+            },
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "confirmada"
+            },
+            {
+              "keyName": "profesional_id",
+              "condition": "eq",
+              "keyValue": "={{ $node[\"Calcular ventana turno\"].json.profesional_id }}"
+            },
+            {
+              "keyName": "fecha_fin",
+              "condition": "gt",
+              "keyValue": "={{ $node[\"Calcular ventana turno\"].json.fecha_hora }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1488,
+        -480
+      ],
+      "id": "013de609-8f44-4c36-a4f0-b553bfdc3f53",
+      "name": "Buscar citas en ese horario",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a2328e02-f101-4028-94fc-3aa9c4790679",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1792,
+        -624
+      ],
+      "id": "4f6eca8c-62d1-4920-a19b-614a2715bff5",
+      "name": "¿Horario libre?"
+    },
+    {
+      "parameters": {
+        "tableId": "clientes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "nombre_completo",
+              "fieldValue": "={{ $node[\"Normalizar IA\"].json.nombre_cliente }}"
+            },
+            {
+              "fieldId": "telefono",
+              "fieldValue": "={{ $node[\"Normalizar IA\"].json.telefono }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $node[\"Normalizar IA\"].json.email || null }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2752,
+        -496
+      ],
+      "id": "8e23d045-a9a0-448f-b524-6954f520d0df",
+      "name": "Crear cliente",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "citas",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $json.cliente_id || $json.id }}"
+            },
+            {
+              "fieldId": "servicio_id",
+              "fieldValue": "={{ $node[\"Calcular ventana turno\"].json.servicio_id }}"
+            },
+            {
+              "fieldId": "fecha_hora",
+              "fieldValue": "={{ $node[\"Calcular ventana turno\"].json.fecha_hora }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "confirmada"
+            },
+            {
+              "fieldId": "medio_reserva",
+              "fieldValue": "={{ $node[\"Parsear entrada\"].json.canal_reserva }}"
+            },
+            {
+              "fieldId": "notas",
+              "fieldValue": "={{ $node[\"Normalizar IA\"].json.notas || \"\" }}"
+            },
+            {
+              "fieldId": "fecha_fin",
+              "fieldValue": "={{ $node[\"Calcular ventana turno\"].json.fecha_fin }}"
+            },
+            {
+              "fieldId": "duracion_minutos",
+              "fieldValue": "={{ $node[\"Calcular ventana turno\"].json.duracion_minutos }}"
+            },
+            {
+              "fieldId": "profesional_id",
+              "fieldValue": "={{ $node[\"Calcular ventana turno\"].json.profesional_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2896,
+        -736
+      ],
+      "id": "6d9aa3f0-4001-4163-83f1-83cadf1bae7a",
+      "name": "Crear cita",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = (() => {\n  try {\n    return $node[\"Normalizar IA\"].json || {};\n  } catch {\n    return {};\n  }\n})();\n\nconst ctx = { ...base, ...$json };\n\nconst citaCreada = (() => {\n  try {\n    return $node[\"Crear cita\"].json || null;\n  } catch {\n    return null;\n  }\n})();\n\nconst citaExistente = (() => {\n  try {\n    return $node[\"Buscar citas en ese horario\"].json || null;\n  } catch {\n    return null;\n  }\n})();\n\nfunction formatearFechaHora(iso) {\n  if (!iso) return \"\";\n  const d = new Date(iso);\n  return d.toLocaleString(\"es-AR\", {\n    timeZone: \"America/Argentina/Buenos_Aires\",\n    weekday: \"long\",\n    day: \"2-digit\",\n    month: \"long\",\n    hour: \"2-digit\",\n    minute: \"2-digit\",\n    hour12: false\n  });\n}\n\nif (ctx.error) {\n  return [{\n    json: {\n      ok: false,\n      respuesta: \"Hubo un problema al consultar o guardar la reserva. Intentá nuevamente en unos minutos.\"\n    }\n  }];\n}\n\nif (!ctx.listo_para_reservar) {\n  return [{\n    json: {\n      ok: true,\n      respuesta: ctx.pregunta || \"Necesito algunos datos más para continuar con la reserva.\"\n    }\n  }];\n}\n\nif (citaCreada?.id) {\n  return [{\n    json: {\n      ok: true,\n      respuesta:\n        `Tu reserva ha sido confirmada.\\n\\n` +\n        `📅 Servicio: ${ctx.servicio_nombre}\\n` +\n        `🗓 Fecha y hora: ${formatearFechaHora(ctx.fecha_hora)}\\n` +\n        `📍 Salón Bella\\n\\n` +\n        `Recibirás un recordatorio automático antes del turno.`\n    }\n  }];\n}\n\nif (citaExistente?.id && !citaCreada?.id) {\n  return [{\n    json: {\n      ok: false,\n      respuesta:\n        `Ese horario ya no está disponible para ${ctx.servicio_nombre || \"el servicio solicitado\"}.\\n\\n` +\n        `Decime otro horario y te ayudo a confirmarlo.`\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ok: false,\n    respuesta: \"No pude completar la reserva. Intentá nuevamente.\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2912,
+        -256
+      ],
+      "id": "14509453-3f4d-49c9-a89e-e57664a4507c",
+      "name": "Armar respuesta humana"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: $json.ok ?? true, respuesta: $json.respuesta || $json.pregunta || \"OK\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3104,
+        -256
+      ],
+      "id": "11d6ac52-2acf-4e48-950b-635000962c62",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b08dbc94-f94d-4280-a8d6-0697c3262dd2",
+              "leftValue": "={{ $json.listo_para_reservar }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        -320
+      ],
+      "id": "d4d8bd7a-4dc2-4307-9675-ca2b5d41d949",
+      "name": "¿Listo para reservar?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = ($json.output ?? \"\").toString();\nlet s = raw.replace(/```json|```/g, \"\").trim();\n\nlet obj;\n\ntry {\n  obj = JSON.parse(s);\n} catch (e) {\n  const m = s.match(/\\{[\\s\\S]*\\}/);\n  if (!m) {\n    obj = {\n      intencion: \"otro\",\n      nombre_cliente: \"\",\n      telefono: \"\",\n      email: \"\",\n      servicio_nombre: \"\",\n      fecha: \"\",\n      hora: \"\",\n      notas: \"\",\n      faltantes: [],\n      pregunta: \"No pude interpretar el mensaje. ¿Qué servicio y horario querés reservar?\",\n      listo_para_reservar: false\n    };\n  } else {\n    obj = JSON.parse(m[0]);\n  }\n}\n\nconst base = (() => {\n  try {\n    return $node[\"Unificar entrada + servicios\"].json || {};\n  } catch {\n    return {};\n  }\n})();\n\nreturn [{\n  json: {\n    ...base,\n    ...obj\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -320
+      ],
+      "id": "c0095567-1a1d-4d7b-88c7-dcce74cbb2e6",
+      "name": "Parsear JSON IA"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c2ce98a5-9da9-4ad0-9ce4-813d183b1bfa",
+              "leftValue": "={{ !!$json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1664,
+        -480
+      ],
+      "id": "2a6e4837-1dbe-4256-aa4b-3c53db9febd3",
+      "name": "¿Hubo error Supabase?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = $items(\"Parsear entrada\")[0].json;\nconst servicios = $items(\"Traer servicios activos\").map(i => i.json);\n\nconst mensaje = (entrada.mensaje ?? \"\").toString().trim();\nconst history = Array.isArray(entrada.history) ? entrada.history : [];\nconst canal_reserva = (entrada.canal_reserva ?? \"asistente_ia\").toString();\n\nconst hoy_local = new Date().toLocaleDateString(\"en-CA\", {\n  timeZone: \"America/Argentina/Buenos_Aires\"\n});\n\nconst servicios_compactos = servicios\n  .map(s => `${s.id}|${s.nombre}`)\n  .join(\"\\n\");\n\nconst history_text = history\n  .slice(-10)\n  .map(m => `${(m.role || \"user\").toUpperCase()}: ${(m.content || \"\").toString().trim()}`)\n  .join(\"\\n\");\n\nreturn [{\n  json: {\n    ...entrada,\n    mensaje,\n    history,\n    canal_reserva,\n    servicios,\n    hoy_local,\n    servicios_compactos,\n    history_text\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -320
+      ],
+      "id": "a6e9e372-6d21-4196-bcde-1ba90bc7e56c",
+      "name": "Unificar entrada + servicios"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "clientes",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telefono",
+              "condition": "eq",
+              "keyValue": "={{ $node[\"Normalizar IA\"].json.telefono }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        -528
+      ],
+      "id": "8dbbe9a7-3c2e-4bed-b0e1-641804e2d6fe",
+      "name": "Buscar cliente por teléfono",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6cd620f9-b249-44d8-b2c7-648eda7ad0ea",
+              "leftValue": "={{ !!$json.id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2336,
+        -592
+      ],
+      "id": "44ec5d07-d6c4-45ff-a0cd-e53cfd518ad9",
+      "name": "¿Cliente encontrado por teléfono?"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "clientes",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "condition": "eq",
+              "keyValue": "={{ $node[\"Normalizar IA\"].json.email }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        -736
+      ],
+      "id": "458ee336-50b7-4bd7-a504-c084bff9b776",
+      "name": "Buscar cliente por email",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6cd620f9-b249-44d8-b2c7-648eda7ad0ea",
+              "leftValue": "={{ !!$json.id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2144,
+        -736
+      ],
+      "id": "fd449b03-1181-48e1-babb-71e709b601ad",
+      "name": "¿Cliente encontrado por email?",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "content": "Entrada del chat",
+        "height": 256,
+        "width": 384,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -192,
+        -400
+      ],
+      "typeVersion": 1,
+      "id": "f0e81b03-ab38-4153-80ab-1b0a6d7c26a3",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Contexto para IA",
+        "height": 384,
+        "width": 816,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        192,
+        -400
+      ],
+      "typeVersion": 1,
+      "id": "e76f5db1-3aac-4928-988a-596171d1a820",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "Validación de negocio",
+        "height": 496,
+        "width": 912
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1008,
+        -640
+      ],
+      "typeVersion": 1,
+      "id": "7ee344c2-b86d-4c10-a0b3-27f853c5c2d6",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "Resolución de cliente",
+        "height": 464,
+        "width": 928,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1920,
+        -800
+      ],
+      "typeVersion": 1,
+      "id": "a4d21d2e-c2f9-42c8-b6f3-320500db436e",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "Confirmación de cita",
+        "height": 704,
+        "width": 368,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2848,
+        -800
+      ],
+      "typeVersion": 1,
+      "id": "51644d7e-b8e2-47f3-a6f0-c98e10e3308d",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $node[\"Normalizar IA\"].json || {};\nconst servicios = $items(\"Traer servicios activos\").map(i => i.json);\n\nconst servicio = servicios.find(\n  s => String(s.id) === String(base.servicio_id)\n);\n\nconst profesional_id = base.profesional_id || servicio?.profesional_id || \"\";\n\nif (!base.fecha_hora || !base.servicio_id || !servicio) {\n  return [{\n    json: {\n      ...base,\n      profesional_id,\n      duracion_minutos: null,\n      fecha_fin: \"\"\n    }\n  }];\n}\n\nconst duracion = Number(servicio.duracion_minutos || 60);\nconst inicio = new Date(base.fecha_hora);\nconst fin = new Date(inicio.getTime() + duracion * 60000);\n\nreturn [{\n  json: {\n    ...base,\n    profesional_id,\n    duracion_minutos: duracion,\n    fecha_fin: fin.toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        -480
+      ],
+      "id": "4b95243a-0762-40e8-8ca3-27d0e1f453e5",
+      "name": "Calcular ventana turno"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3040,
+        -528
+      ],
+      "id": "dba0fa07-94bd-4e71-90c2-61760670d388",
+      "name": "Enviar notificacion IA",
+      "webhookId": "REDACTED_WEBHOOK_ID",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $node[\"Normalizar IA\"].json;\nconst cita = $node[\"Crear cita\"].json;\nconst turno = $node[\"Calcular ventana turno\"].json;\n\nconst fechaHora = new Date(turno.fecha_hora);\n\nconst fechaStr = fechaHora.toLocaleDateString(\"es-AR\", {\n  timeZone: \"America/Argentina/Buenos_Aires\",\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\",\n});\n\nconst horaStr = fechaHora.toLocaleTimeString(\"es-AR\", {\n  timeZone: \"America/Argentina/Buenos_Aires\",\n  hour: \"2-digit\",\n  minute: \"2-digit\",\n  hour12: false,\n});\n\nconst to = \"tomasfontana0@gmail.com\";\n\nconst subject = `📢 NUEVA RESERVA CONFIRMADA — ${ctx.servicio_nombre} — ${fechaStr} ${horaStr}`;\n\nconst html = `\n<div style=\"font-family: Arial, sans-serif; line-height: 1.5;\">\n  <h2 style=\"margin:0 0 8px;\">📢 NUEVA RESERVA CONFIRMADA</h2>\n  <table style=\"border-collapse: collapse; width: 100%; max-width: 560px;\">\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>💅 Servicio</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${ctx.servicio_nombre || \"-\"}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>🗓 Fecha</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${fechaStr}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>🕒 Hora</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${horaStr}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>👤 Cliente</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${ctx.nombre_cliente || \"-\"}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>📞 Teléfono</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${ctx.telefono || \"-\"}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>✉️ Email</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${ctx.email || \"-\"}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>📎 Medio</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">asistente_ia</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>📝 Notas</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${ctx.notas || \"-\"}</td>\n    </tr>\n  </table>\n\n  <p style=\"margin:16px 0 0; color:#666;\">\n    ID de cita: ${cita.id || \"N/A\"}\n  </p>\n</div>\n`;\n\nreturn [\n  {\n    json: {\n      to,\n      subject,\n      html\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3072,
+        -736
+      ],
+      "id": "11a90d59-2f8d-4a6c-a372-e4d41cc5b95e",
+      "name": "Armar notificacion IA"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "609afa28-e095-445e-a936-8deeac24eea7",
+              "leftValue": "={{ !!$node[\"Normalizar IA\"].json.telefono }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2512,
+        -496
+      ],
+      "id": "d49ac916-a8f0-487f-b2b7-3cca7742a192",
+      "name": "¿Hay telefono?"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "IA Reservas (chat)": {
+      "main": [
+        [
+          {
+            "node": "Parsear entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear entrada": {
+      "main": [
+        [
+          {
+            "node": "Traer servicios activos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traer servicios activos": {
+      "main": [
+        [
+          {
+            "node": "Unificar entrada + servicios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parsear JSON IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar IA": {
+      "main": [
+        [
+          {
+            "node": "¿Listo para reservar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar citas en ese horario": {
+      "main": [
+        [
+          {
+            "node": "¿Hubo error Supabase?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Horario libre?": {
+      "main": [
+        [
+          {
+            "node": "Buscar cliente por email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta humana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear cliente": {
+      "main": [
+        [
+          {
+            "node": "Crear cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear cita": {
+      "main": [
+        [
+          {
+            "node": "Armar notificacion IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar respuesta humana": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Listo para reservar?": {
+      "main": [
+        [
+          {
+            "node": "Calcular ventana turno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta humana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear JSON IA": {
+      "main": [
+        [
+          {
+            "node": "Normalizar IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hubo error Supabase?": {
+      "main": [
+        [
+          {
+            "node": "¿Horario libre?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta humana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unificar entrada + servicios": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar cliente por teléfono": {
+      "main": [
+        [
+          {
+            "node": "¿Cliente encontrado por teléfono?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Cliente encontrado por teléfono?": {
+      "main": [
+        [
+          {
+            "node": "Crear cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Hay telefono?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar cliente por email": {
+      "main": [
+        [
+          {
+            "node": "¿Cliente encontrado por email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Cliente encontrado por email?": {
+      "main": [
+        [
+          {
+            "node": "Crear cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar cliente por teléfono",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular ventana turno": {
+      "main": [
+        [
+          {
+            "node": "Buscar citas en ese horario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar notificacion IA": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta humana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar notificacion IA": {
+      "main": [
+        [
+          {
+            "node": "Enviar notificacion IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay telefono?": {
+      "main": [
+        [
+          {
+            "node": "Crear cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "REDACTED_VERSION_ID",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "id": "REDACTED_WORKFLOW_ID",
+  "tags": []
+}

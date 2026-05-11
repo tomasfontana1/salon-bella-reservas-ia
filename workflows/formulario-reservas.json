@@ -1,0 +1,840 @@
+{
+  "name": "M3 Formulario",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "reservas-formulario",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        112
+      ],
+      "id": "4f21ea61-4c2a-45e0-bf45-9483f522ca63",
+      "name": "Webhook",
+      "webhookId": "REDACTED_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": "={{ Number($json.statusCode || 200) }}",
+          "responseKey": "={{ $json }}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2352,
+        80
+      ],
+      "id": "38912e50-0e6d-48a7-97bd-8aff89063b9a",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2fc004fc-0c1a-4aab-8e4f-4c7953e92f01",
+              "leftValue": "={{ $json.validacion_ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        368,
+        112
+      ],
+      "id": "c16c3cfb-89eb-47f5-b111-78970e457d2c",
+      "name": "Los datos son correctos?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8376b20a-6a1b-4f24-bc95-efafb75cea48",
+              "name": "ok",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "4d33518c-624e-4d48-a269-0ebba3d802d7",
+              "name": "statusCode",
+              "value": 400,
+              "type": "number"
+            },
+            {
+              "id": "92ed4137-27dc-4167-809f-f10fa2633ae3",
+              "name": "mensaje",
+              "value": "Datos incompletos o inválidos",
+              "type": "string"
+            },
+            {
+              "id": "f4e465c8-c94a-47fd-862e-1edda18f1999",
+              "name": "errores",
+              "value": "={{ $node[\"Normalizar y validar entrada\"].json.errores }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        768,
+        288
+      ],
+      "id": "383f3e7f-a9c0-4728-ba88-82cee7bbcd0f",
+      "name": "Error datos"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2fc004fc-0c1a-4aab-8e4f-4c7953e92f01",
+              "leftValue": "={{$json.id}}",
+              "rightValue": "=",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        16
+      ],
+      "id": "4a1a75f8-caf8-4375-95b7-3430f232fbb0",
+      "name": "¿Servicio existe?"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "servicios",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "nombre",
+              "condition": "eq",
+              "keyValue": "={{ $node[\"Normalizar y validar entrada\"].json.servicio }}"
+            },
+            {
+              "keyName": "activo",
+              "condition": "is",
+              "keyValue": "={{ true }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        560,
+        16
+      ],
+      "id": "7fe79664-2bcb-4d9a-9623-dc79d8a3347b",
+      "name": "Traer servicio",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "clientes",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "condition": "eq",
+              "keyValue": "={{$node[\"Normalizar y validar entrada\"].json.email}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        928,
+        -64
+      ],
+      "id": "09d8cdba-260c-4f4e-8892-8e22e64269eb",
+      "name": "Busca si ya existe el cliente",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2fc004fc-0c1a-4aab-8e4f-4c7953e92f01",
+              "leftValue": "={{$json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1104,
+        -64
+      ],
+      "id": "a53ede49-1264-463a-af88-823088140648",
+      "name": "¿Cliente existe?"
+    },
+    {
+      "parameters": {
+        "tableId": "clientes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "nombre_completo",
+              "fieldValue": "={{ $node[\"Normalizar y validar entrada\"].json.nombre_cliente }}"
+            },
+            {
+              "fieldId": "telefono",
+              "fieldValue": "={{ $node[\"Normalizar y validar entrada\"].json.telefono }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $node[\"Normalizar y validar entrada\"].json.email || null }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        80
+      ],
+      "id": "11171d0f-0552-453f-aed9-e1c83f008d1d",
+      "name": "Crear cliente",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "citas",
+        "limit": 1,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "confirmada"
+            },
+            {
+              "keyName": "fecha_hora",
+              "condition": "lt",
+              "keyValue": "={{ $node[\"Calcular ventana turno formulario\"].json.fecha_fin }}"
+            },
+            {
+              "keyName": "profesional_id",
+              "condition": "eq",
+              "keyValue": "={{ $node[\"Calcular ventana turno formulario\"].json.profesional_id }}"
+            },
+            {
+              "keyName": "fecha_fin",
+              "condition": "gt",
+              "keyValue": "={{ $node[\"Calcular ventana turno formulario\"].json.fecha_hora }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1616,
+        -80
+      ],
+      "id": "f0fad3df-f14a-4387-a74e-8c28df800b0e",
+      "name": "Validar si ya existe una cita en ese horario",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "931b9cdb-fa63-4b03-a816-28ae0b683e33",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1824,
+        -80
+      ],
+      "id": "c2b3e320-666d-42db-9a68-9240aa60eae1",
+      "name": "¿Horario libre?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8376b20a-6a1b-4f24-bc95-efafb75cea48",
+              "name": "ok",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "4d33518c-624e-4d48-a269-0ebba3d802d7",
+              "name": "statusCode",
+              "value": 400,
+              "type": "number"
+            },
+            {
+              "id": "92ed4137-27dc-4167-809f-f10fa2633ae3",
+              "name": "mensaje",
+              "value": "El servicio no existe o no está activo",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1216,
+        304
+      ],
+      "id": "666781f5-17a6-496a-9fa4-e8b2d7f6ffaf",
+      "name": "Error servicio"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8376b20a-6a1b-4f24-bc95-efafb75cea48",
+              "name": "ok",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "4d33518c-624e-4d48-a269-0ebba3d802d7",
+              "name": "statusCode",
+              "value": 409,
+              "type": "number"
+            },
+            {
+              "id": "92ed4137-27dc-4167-809f-f10fa2633ae3",
+              "name": "mensaje",
+              "value": "Ese horario ya está ocupado. Elegí otro turno.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1984,
+        272
+      ],
+      "id": "e812d07f-df22-4d28-af61-a758c8d084b3",
+      "name": "Error horario"
+    },
+    {
+      "parameters": {
+        "tableId": "citas",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "cliente_id",
+              "fieldValue": "={{ $node[\"Calcular ventana turno formulario\"].json.cliente_id }}"
+            },
+            {
+              "fieldId": "servicio_id",
+              "fieldValue": "={{ $node[\"Calcular ventana turno formulario\"].json.servicio_id }}"
+            },
+            {
+              "fieldId": "fecha_hora",
+              "fieldValue": "={{ $node[\"Calcular ventana turno formulario\"].json.fecha_hora }}"
+            },
+            {
+              "fieldId": "profesional_id",
+              "fieldValue": "={{ $node[\"Calcular ventana turno formulario\"].json.profesional_id }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "confirmada"
+            },
+            {
+              "fieldId": "medio_reserva",
+              "fieldValue": "={{ $node[\"Calcular ventana turno formulario\"].json.medio_reserva }}"
+            },
+            {
+              "fieldId": "notas",
+              "fieldValue": "={{ $node[\"Calcular ventana turno formulario\"].json.notas }}"
+            },
+            {
+              "fieldId": "duracion_minutos",
+              "fieldValue": "={{ $node[\"Calcular ventana turno formulario\"].json.duracion_minutos }}"
+            },
+            {
+              "fieldId": "fecha_fin",
+              "fieldValue": "={{ $node[\"Calcular ventana turno formulario\"].json.fecha_fin }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        -224
+      ],
+      "id": "6c003a68-7ba3-4b9f-87de-a6503ee284ce",
+      "name": "Crear cita",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c4525504-ee15-4de2-93c0-696f64c0b822",
+              "name": "ok",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "44d8eeea-b020-4f2c-9151-0f62e86a442a",
+              "name": "statusCode",
+              "value": 200,
+              "type": "number"
+            },
+            {
+              "id": "51cd32b1-7f92-4ca7-880b-df55397f9d20",
+              "name": "mensaje",
+              "value": "Reserva confirmada",
+              "type": "string"
+            },
+            {
+              "id": "4fc690f7-079c-4c94-94fb-11d6a9fd7f04",
+              "name": "cliente_id",
+              "value": "={{ $node[\"Calcular ventana turno formulario\"].json.cliente_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a0ac0f73-57e0-41bd-b7ea-48d59e85d8ad",
+              "name": "servicio_id",
+              "value": "={{ $node[\"Calcular ventana turno formulario\"].json.servicio_id }}",
+              "type": "string"
+            },
+            {
+              "id": "afdd6e29-0d93-4153-88a0-ba46c8c73458",
+              "name": "fecha_hora",
+              "value": "={{ $node[\"Calcular ventana turno formulario\"].json.fecha_hora }}",
+              "type": "string"
+            },
+            {
+              "id": "a63386d3-444e-4816-987d-344df1da89bd",
+              "name": "medio_reserva",
+              "value": "={{ $node[\"Calcular ventana turno formulario\"].json.medio_reserva }}",
+              "type": "string"
+            },
+            {
+              "id": "c4d10e20-11d4-48ec-9e1a-8fe14e84c8cd",
+              "name": "estado",
+              "value": "confirmada",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2240,
+        -224
+      ],
+      "id": "97df65c5-d4b6-4e42-b77a-7b9b0e7d8e12",
+      "name": "Respuesta OK"
+    },
+    {
+      "parameters": {
+        "content": "Errores",
+        "height": 192,
+        "width": 1632,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        512,
+        240
+      ],
+      "typeVersion": 1,
+      "id": "54d49adb-dba7-48d9-bd19-74ae95708142",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "jsCode": "let data = $json.body ?? $json;\n\n// Si llega como text/plain, el body puede venir como string\nif (typeof data === \"string\") {\n  try {\n    data = JSON.parse(data);\n  } catch (e) {\n    throw new Error(\"Body inválido (no se pudo parsear JSON)\");\n  }\n}\n\nconst nombre_cliente = (data.nombre_cliente || '').trim();\nconst telefono = (data.telefono || '').replace(/\\D/g, '');\nconst email = (data.email || '').trim().toLowerCase();\nconst servicio = (data.servicio || '').trim();\nconst fecha = (data.fecha || '').trim();\nconst hora = (data.hora || '').trim();\nconst notas = (data.notas || '').trim();\nconst canal_reserva = (data.canal_reserva || 'formulario').trim();\n\nconst errores = [];\n\nif (!nombre_cliente) errores.push('Falta nombre_cliente');\nif (!telefono) errores.push('Falta telefono');\nif (!email) errores.push('Falta email');\nif (!servicio) errores.push('Falta servicio');\nif (!fecha) errores.push('Falta fecha');\nif (!hora) errores.push('Falta hora');\n\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (email && !emailRegex.test(email)) errores.push('Email inválido');\n\nconst horaOk = /^([01]\\d|2[0-3]):(00|30)$/.test(hora);\nif (hora && !horaOk) errores.push('Hora inválida. Debe venir en bloques de 30 min');\n\nconst fecha_hora = (fecha && hora)\n  ? `${fecha}T${hora}:00-03:00`\n  : null;\n\nreturn [\n  {\n    json: {\n      nombre_cliente,\n      telefono,\n      email,\n      servicio,\n      fecha,\n      hora,\n      fecha_hora,\n      notas,\n      canal_reserva,\n      validacion_ok: errores.length === 0,\n      errores\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        112
+      ],
+      "id": "e4485c5d-c195-4d23-8d4b-a964b045ebcd",
+      "name": "Normalizar y validar entrada"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $node[\"Normalizar y validar entrada\"].json.email || null }}",
+        "subject": "=📢 NUEVA RESERVA CONFIRMADA — {{ $node[\"Normalizar y validar entrada\"].json.servicio }} — {{ $node[\"Normalizar y validar entrada\"].json.fecha }} {{ $node[\"Normalizar y validar entrada\"].json.hora }}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; line-height: 1.5;\">\n  <h2 style=\"margin:0 0 8px;\">📢 NUEVA RESERVA CONFIRMADA</h2>\n  <p style=\"margin:0 0 16px;\">Se registró una nueva reserva en <b>Sallon Bella</b>.</p>\n\n  <table style=\"border-collapse: collapse; width: 100%; max-width: 520px;\">\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>💅 Servicio</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">{{ $node[\"Normalizar y validar entrada\"].json.servicio }}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>🗓 Fecha</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">{{ $node[\"Normalizar y validar entrada\"].json.fecha }}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>🕒 Hora</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">{{ $node[\"Normalizar y validar entrada\"].json.hora }}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>👤 Cliente</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">{{ $node[\"Normalizar y validar entrada\"].json.nombre_cliente }}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>📞 Teléfono</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">{{ $node[\"Normalizar y validar entrada\"].json.telefono }}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>📎 Medio</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">{{ $node[\"Normalizar y validar entrada\"].json.canal_reserva }}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>🧾 Estado</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">confirmada</td>\n    </tr>\n  </table>\n\n  <p style=\"margin:16px 0 0; color:#666;\">\n    ID de cita: {{ $node[\"Crear cita\"].json.id || $node[\"Crear cita\"].json.cita_id || \"N/A\" }}\n  </p>\n</div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2096,
+        -224
+      ],
+      "id": "1e92fde0-15ed-4c57-907a-cbb66d949bf5",
+      "name": "Enviar notificacion",
+      "webhookId": "REDACTED_WEBHOOK_ID",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = $node[\"Normalizar y validar entrada\"].json;\nconst servicio = $node[\"Traer servicio\"].json;\n\n// Si vino del branch \"cliente existe\", $json ya es el cliente.\n// Si vino de \"Crear cliente\", también.\nconst cliente = $json;\n\nconst fecha_hora = entrada.fecha_hora;\nconst duracion_minutos = Number(servicio.duracion_minutos || 60);\nconst profesional_id = servicio.profesional_id || \"\";\n\nconst inicio = new Date(fecha_hora);\nconst fecha_fin = new Date(inicio.getTime() + duracion_minutos * 60000).toISOString();\n\nreturn [{\n  json: {\n    cliente_id: cliente.id,\n    servicio_id: servicio.id,\n    profesional_id,\n    fecha_hora,\n    fecha_fin,\n    duracion_minutos,\n    medio_reserva: entrada.canal_reserva,\n    notas: entrada.notas || \"\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        -80
+      ],
+      "id": "17ff9726-dc6c-4314-b978-d2574712668e",
+      "name": "Calcular ventana turno formulario"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalizar y validar entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Los datos son correctos?": {
+      "main": [
+        [
+          {
+            "node": "Traer servicio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Servicio existe?": {
+      "main": [
+        [
+          {
+            "node": "Busca si ya existe el cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error servicio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traer servicio": {
+      "main": [
+        [
+          {
+            "node": "¿Servicio existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busca si ya existe el cliente": {
+      "main": [
+        [
+          {
+            "node": "¿Cliente existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Cliente existe?": {
+      "main": [
+        [
+          {
+            "node": "Calcular ventana turno formulario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear cliente": {
+      "main": [
+        [
+          {
+            "node": "Calcular ventana turno formulario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar si ya existe una cita en ese horario": {
+      "main": [
+        [
+          {
+            "node": "¿Horario libre?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Horario libre?": {
+      "main": [
+        [
+          {
+            "node": "Crear cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error horario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear cita": {
+      "main": [
+        [
+          {
+            "node": "Enviar notificacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta OK": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar y validar entrada": {
+      "main": [
+        [
+          {
+            "node": "Los datos son correctos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error datos": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error servicio": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error horario": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar notificacion": {
+      "main": [
+        [
+          {
+            "node": "Respuesta OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular ventana turno formulario": {
+      "main": [
+        [
+          {
+            "node": "Validar si ya existe una cita en ese horario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "REDACTED_VERSION_ID",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "id": "REDACTED_WORKFLOW_ID",
+  "tags": []
+}

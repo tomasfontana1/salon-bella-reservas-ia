@@ -1,0 +1,916 @@
+{
+  "name": "M3 Recordatorio",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "citas",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "confirmada"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "0fcfb646-5a8d-4744-9f65-8ef6f24652b8",
+      "name": "Traer cita",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cita = $node[\"Procesar citas (batch 1)\"].json;\nconst cliente = $node[\"Traer cliente\"].json;\nconst servicio = $node[\"Traer servicio\"].json;\n\nconst to = (cliente.email || \"\").trim();\n\n// tipo de recordatorio\nconst reminderType = (cita.reminder_type || \"24h\").toString();\nconst prefix = reminderType === \"2h\"\n  ? \"⏰ Recordatorio (2 horas)\"\n  : \"⏰ Recordatorio (24 horas)\";\n\n// fecha/hora\nconst fechaHora = new Date(cita.fecha_hora);\nconst fechaStr = fechaHora.toLocaleDateString(\"es-AR\", {\n  timeZone: \"America/Argentina/Buenos_Aires\",\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\"\n});\n\nconst horaStr = fechaHora.toLocaleTimeString(\"es-AR\", {\n  timeZone: \"America/Argentina/Buenos_Aires\",\n  hour: \"2-digit\",\n  minute: \"2-digit\"\n});\n\nconst subject = `${prefix} — ${servicio.nombre} — ${fechaStr} ${horaStr}`;\n\nconst html = `\n<div style=\"font-family: Arial, sans-serif; line-height: 1.5;\">\n  <h2 style=\"margin:0 0 8px;\">${prefix}</h2>\n  <p style=\"margin:0 0 16px;\">\n    Hola <b>${cliente.nombre_completo}</b>, te recordamos tu turno en <b>Sallon Bella</b>.\n  </p>\n\n  <table style=\"border-collapse: collapse; width: 100%; max-width: 520px;\">\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>💅 Servicio</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${servicio.nombre}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>🗓 Fecha</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${fechaStr}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>🕒 Hora</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">${horaStr}</td>\n    </tr>\n    <tr>\n      <td style=\"padding:8px; border:1px solid #eee;\"><b>📍 Lugar</b></td>\n      <td style=\"padding:8px; border:1px solid #eee;\">Sallon Bella</td>\n    </tr>\n  </table>\n\n  <p style=\"margin:16px 0 0; color:#666;\">\n    Si necesitás reprogramar o cancelar, respondé este mail o comunicate por WhatsApp/Instagram.\n  </p>\n\n  <p style=\"margin:8px 0 0; color:#999; font-size: 12px;\">\n    ID de cita: ${cita.id}\n  </p>\n</div>\n`;\n\nreturn [{\n  json: {\n    to,\n    subject,\n    html,\n    cita_id: cita.id,\n    reminder_type: reminderType,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        -176
+      ],
+      "id": "31748371-bb42-4362-bcc3-3aad09eda252",
+      "name": "Armar gmail"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.cliente_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        960,
+        -144
+      ],
+      "id": "c13798cf-4231-4fc2-936c-61ca26db7723",
+      "name": "Traer cliente",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "servicios",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $node[\"Procesar citas (batch 1)\"].json.servicio_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        -144
+      ],
+      "id": "e9aaacda-bd1d-42e5-8933-c5984e1e1a82",
+      "name": "Traer servicio",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1520,
+        -176
+      ],
+      "id": "ed60cec1-812d-4556-99e8-61554f0f8a8a",
+      "name": "Enviar gmail",
+      "webhookId": "REDACTED_WEBHOOK_ID",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = Date.now();\n\nconst window24Start = now + (24 * 60 - 15) * 60 * 1000;\nconst window24End   = now + (24 * 60 + 15) * 60 * 1000;\n\nconst window2Start  = now + (2 * 60 - 15) * 60 * 1000;\nconst window2End    = now + (2 * 60 + 15) * 60 * 1000;\n\nconst out = [];\n\nfor (const it of $input.all()) {\n  const cita = it.json;\n\n  if (!cita.fecha_hora) continue;\n  if (cita.estado !== \"confirmada\") continue;\n\n  const t = new Date(cita.fecha_hora).getTime();\n  if (Number.isNaN(t)) continue;\n\n  // defensa extra: si ya pasó, no la proceses\n  if (t <= now) continue;\n\n  if (!cita.recordatorio_24h_enviado && t >= window24Start && t <= window24End) {\n    out.push({ json: { ...cita, reminder_type: \"24h\" } });\n    continue;\n  }\n\n  if (!cita.recordatorio_2h_enviado && t >= window2Start && t <= window2End) {\n    out.push({ json: { ...cita, reminder_type: \"2h\" } });\n    continue;\n  }\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        0
+      ],
+      "id": "33445d3a-aac5-43ec-9380-f4d6bca4deea",
+      "name": "Filtrar ventana 24hs + 2hs",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "citas",
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $node[\"Armar gmail\"].json.cita_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "recordatorio_2h_enviado",
+              "fieldValue": "={{ true }}"
+            },
+            {
+              "fieldId": "recordatorio_2h_enviado_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        -384
+      ],
+      "id": "16cae7a8-cf6f-4f76-908b-82f2e251d5b4",
+      "name": "Actualizar el recordatorio 2hs",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2290249d-2e35-4bed-9ede-619fc67d00f3",
+      "name": "Cron recordatorios (cada 15 min)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "29e6e8ee-8520-4d4d-8688-d1e47a5d75e3",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        0
+      ],
+      "id": "0a064bfc-86b8-4fd7-bd8f-224d416c6510",
+      "name": "¿Hay citas a recordar?"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        768,
+        -160
+      ],
+      "id": "7925d3b3-3135-408b-945f-11dbe7cb8f0d",
+      "name": "Procesar citas (batch 1)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a02fa66a-087b-40ba-bf91-31d51a6942e8",
+              "leftValue": "={{ $node[\"Armar gmail\"].json.reminder_type }}",
+              "rightValue": "2h",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1808,
+        -192
+      ],
+      "id": "3854f833-be1b-4aa9-8568-63e081335a5d",
+      "name": "¿Es recordatorio 2h?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "citas",
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $node[\"Armar gmail\"].json.cita_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "recordatorio_24h_enviado_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            },
+            {
+              "fieldId": "recordatorio_24h_enviado",
+              "fieldValue": "={{ true }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        -112
+      ],
+      "id": "71392f80-c777-4d9d-8399-1a81a519d60d",
+      "name": "Actualizar el recordatorio 24h",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "46fbfcf4-e328-4934-9eef-7f444652310b",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "de5302a4-cf5d-4639-a309-fd3b509ca2b5",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "eeb98247-abd2-4306-a18f-424f40378ce1",
+              "leftValue": "={{ $json.threadId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1648,
+        -176
+      ],
+      "id": "8e7ad681-fe1a-4e0e-ae03-6ebc6cbe0b75",
+      "name": "¿Gmail OK?"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "GOOGLE_SHEETS_DOCUMENT_ID",
+          "mode": "list",
+          "cachedResultName": "M3 integradora",
+          "cachedResultUrl": "REDACTED_URL"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Logs errores recordatorio",
+          "cachedResultUrl": "REDACTED_URL"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow": "={{$json.workflow}}",
+            "tipo_recordatorio": "={{$json.tipo_recordatorio}}",
+            "reintentos": "={{$json.reintentos}}",
+            "resuelto": "={{$json.resuelto}}",
+            "error_raw": "={{$json.error_raw}}",
+            "error_message": "={{$json.error_message}}",
+            "canal": "={{$json.canal}}",
+            "fecha_hora_cita": "={{$json.fecha_hora_cita}}",
+            "servicio_id": "={{$json.servicio_id}}",
+            "servicio_nombre": "={{$json.servicio_nombre}}",
+            "cliente_telefono": "={{$json.cliente_telefono}}",
+            "cliente_email": "={{$json.cliente_email}}",
+            "cliente_nombre": "={{$json.cliente_nombre}}",
+            "cliente_id": "={{$json.cliente_id}}",
+            "cita_id": "={{$json.cita_id}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "workflow",
+              "displayName": "workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_recordatorio",
+              "displayName": "tipo_recordatorio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cita_id",
+              "displayName": "cita_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_nombre",
+              "displayName": "cliente_nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_email",
+              "displayName": "cliente_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente_telefono",
+              "displayName": "cliente_telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "servicio_id",
+              "displayName": "servicio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "servicio_nombre",
+              "displayName": "servicio_nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_hora_cita",
+              "displayName": "fecha_hora_cita",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "canal",
+              "displayName": "canal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_message",
+              "displayName": "error_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_raw",
+              "displayName": "error_raw",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "resuelto",
+              "displayName": "resuelto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reintentos",
+              "displayName": "reintentos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        208
+      ],
+      "id": "d99ba2ac-cdf9-4747-96fd-3c36a6f33a47",
+      "name": "Logs error gmail",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6f68faba-e305-42a6-92e0-d7c12e324fa5",
+              "name": "workflow",
+              "value": "Recordatorio 24h/2h",
+              "type": "string"
+            },
+            {
+              "id": "f983856e-7a6f-487f-ba79-3af633512661",
+              "name": "tipo_recordatorio",
+              "value": "={{ $node[\"Procesar citas (batch 1)\"].json.reminder_type || $node[\"Armar gmail\"].json.reminder_type || \"24h\" }}",
+              "type": "string"
+            },
+            {
+              "id": "8f670431-7eb6-4a5f-b894-7cbfd8226871",
+              "name": "cita_id",
+              "value": "={{ $node[\"Procesar citas (batch 1)\"].json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "6bca670a-3eb7-4fec-afe9-50582a8d5e2a",
+              "name": "cliente_id",
+              "value": "={{ $node[\"Procesar citas (batch 1)\"].json.cliente_id }}",
+              "type": "string"
+            },
+            {
+              "id": "0bf20e05-b088-405a-a609-d030df8ef1bf",
+              "name": "cliente_nombre",
+              "value": "={{ $node[\"Traer cliente\"].json.nombre_completo || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "4defb690-3735-46ad-b2c2-7b60a93e7469",
+              "name": "cliente_email",
+              "value": "={{ $node[\"Traer cliente\"].json.email || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "2e7b07f9-04de-431f-9d3d-68facddfdb6d",
+              "name": "cliente_telefono",
+              "value": "={{ $node[\"Traer cliente\"].json.telefono || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "290edc86-ae52-4ef9-9e50-237d7c638087",
+              "name": "servicio_id",
+              "value": "={{ $node[\"Procesar citas (batch 1)\"].json.servicio_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f1c4f9f5-1e81-40b2-af42-a13f9162bb5e",
+              "name": "servicio_nombre",
+              "value": "={{ $node[\"Traer servicio\"].json.nombre || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "38d10e33-dcb7-4cfa-aa19-f9cf68a07226",
+              "name": "fecha_hora_cita",
+              "value": "={{ $node[\"Procesar citas (batch 1)\"].json.fecha_hora }}",
+              "type": "string"
+            },
+            {
+              "id": "bb1772d7-99d6-450e-9b0e-6fb763f3b0c1",
+              "name": "canal",
+              "value": "gmail",
+              "type": "string"
+            },
+            {
+              "id": "3b8b3e8b-d424-4cc9-8e4f-3962bf1edc26",
+              "name": "error_message",
+              "value": "={{ $json.error?.message || $json.message || \"Gmail falló (sin detalle)\" }}",
+              "type": "string"
+            },
+            {
+              "id": "652f5d46-affb-41ca-8445-3021fc8f424e",
+              "name": "error_raw",
+              "value": "={{ JSON.stringify($json) }}",
+              "type": "string"
+            },
+            {
+              "id": "c1cec6ad-021d-43f0-8407-e3d2a5714146",
+              "name": "resuelto",
+              "value": "FALSE",
+              "type": "string"
+            },
+            {
+              "id": "26346f36-c1a3-49f8-8a3f-3d64985e4323",
+              "name": "reintentos",
+              "value": "0",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1568,
+        208
+      ],
+      "id": "4932f67b-9ea4-40b4-947c-cca23021cbb1",
+      "name": "Error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "648a11af-229c-4ea3-bd5c-47523335a6a3",
+              "leftValue": "={{ !!($node[\"Traer cliente\"].json.email && $node[\"Traer cliente\"].json.email.trim()) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        -144
+      ],
+      "id": "7fb78f84-0365-48d5-83ec-775dcf662993",
+      "name": "¿Cliente tiene email?"
+    }
+  ],
+  "pinData": {
+    "Cron recordatorios (cada 15 min)": [
+      {
+        "json": {
+          "timestamp": "2026-03-17T09:15:26.003-03:00",
+          "Readable date": "March 17th 2026, 9:15:26 am",
+          "Readable time": "9:15:26 am",
+          "Day of week": "Tuesday",
+          "Year": "2026",
+          "Month": "March",
+          "Day of month": "17",
+          "Hour": "09",
+          "Minute": "15",
+          "Second": "26",
+          "Timezone": "America/Argentina/Buenos_Aires (UTC-03:00)"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Traer cita": {
+      "main": [
+        [
+          {
+            "node": "Filtrar ventana 24hs + 2hs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar gmail": {
+      "main": [
+        [
+          {
+            "node": "Enviar gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traer cliente": {
+      "main": [
+        [
+          {
+            "node": "Traer servicio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traer servicio": {
+      "main": [
+        [
+          {
+            "node": "¿Cliente tiene email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar gmail": {
+      "main": [
+        [
+          {
+            "node": "¿Gmail OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar ventana 24hs + 2hs": {
+      "main": [
+        [
+          {
+            "node": "¿Hay citas a recordar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar el recordatorio 2hs": {
+      "main": [
+        [
+          {
+            "node": "Procesar citas (batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron recordatorios (cada 15 min)": {
+      "main": [
+        [
+          {
+            "node": "Traer cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay citas a recordar?": {
+      "main": [
+        [
+          {
+            "node": "Procesar citas (batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar citas (batch 1)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Traer cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es recordatorio 2h?": {
+      "main": [
+        [
+          {
+            "node": "Actualizar el recordatorio 2hs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Actualizar el recordatorio 24h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar el recordatorio 24h": {
+      "main": [
+        [
+          {
+            "node": "Procesar citas (batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Gmail OK?": {
+      "main": [
+        [
+          {
+            "node": "¿Es recordatorio 2h?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error": {
+      "main": [
+        [
+          {
+            "node": "Logs error gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Cliente tiene email?": {
+      "main": [
+        [
+          {
+            "node": "Armar gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logs error gmail": {
+      "main": [
+        [
+          {
+            "node": "Procesar citas (batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "REDACTED_VERSION_ID",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "id": "REDACTED_WORKFLOW_ID",
+  "tags": []
+}

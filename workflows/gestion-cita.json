@@ -1,0 +1,895 @@
+{
+  "name": "M3 Gestion cita",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gestion-cita",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -176,
+        -384
+      ],
+      "id": "fbc10f80-7a22-4f5f-a229-8ec71356257f",
+      "name": "Gestion Cita",
+      "webhookId": "REDACTED_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "let body = $json.body ?? $json;\n\nif (typeof body === \"string\") {\n  try {\n    body = JSON.parse(body);\n  } catch {\n    body = {};\n  }\n}\n\nconst accion = (body.accion ?? \"\").toString().trim().toLowerCase();\nconst cita_id = (body.cita_id ?? \"\").toString().trim();\nconst nueva_fecha = (body.nueva_fecha ?? \"\").toString().trim();\nconst nueva_hora = (body.nueva_hora ?? \"\").toString().trim();\nconst motivo_cancelacion = (body.motivo_cancelacion ?? \"\").toString().trim();\n\nreturn [{\n  json: {\n    cita_id,\n    accion,\n    nueva_fecha,\n    nueva_hora,\n    motivo_cancelacion\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        -384
+      ],
+      "id": "60e1550b-82d8-4d7d-b7a0-f4c229fa8efe",
+      "name": "Parsear entrada gestion"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "54eb9293-f383-4664-8e96-c8c18a75c4cc",
+              "leftValue": "={{ !!$json.id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        288,
+        -384
+      ],
+      "id": "68f11495-8c70-4791-9b1c-357c692edf3f",
+      "name": "¿Existe cita?"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "citas",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.cita_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        144,
+        -384
+      ],
+      "id": "2855a7a3-e426-48bf-a2f6-5f8c0d5b25b9",
+      "name": "Buscar cita",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "68761092-8330-4664-9c89-7e6d3eec43e7",
+              "leftValue": "={{ $node[\"Parsear entrada gestion\"].json.accion }}",
+              "rightValue": "cancelar",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        608,
+        -576
+      ],
+      "id": "1b9c7804-cdea-4a9c-b224-50b8b1744bf2",
+      "name": "¿Accion cancelar?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "citas",
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $node[\"Buscar cita\"].json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado",
+              "fieldValue": "cancelada"
+            },
+            {
+              "fieldId": "cancelada_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "motivo_cancelacion",
+              "fieldValue": "={{ $node[\"Parsear entrada gestion\"].json.motivo_cancelacion || null }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        800,
+        -592
+      ],
+      "id": "04fd5b8c-d4fb-4b70-8173-be8b292eb3ea",
+      "name": "Cancelar cita",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5c11fc78-898c-4b9b-abb4-046feb8ff68a",
+              "leftValue": "={{ !!$node[\"Parsear entrada gestion\"].json.nueva_fecha }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "ee4ed742-32bc-4af6-b158-337e7e745e32",
+              "leftValue": "={{ !!$node[\"Parsear entrada gestion\"].json.nueva_hora }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        768,
+        -64
+      ],
+      "id": "3eda9860-2cd3-40d4-b5bd-1c22cb9427cd",
+      "name": "¿Datos reprogramacion completos?"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "servicios",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "is",
+              "keyValue": "={{ $node[\"Buscar cita\"].json.servicio_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        960,
+        -96
+      ],
+      "id": "7d6d7c34-3a93-48d6-9390-3d9a690fbfe4",
+      "name": "Traer servicio cita",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cita = $node[\"Buscar cita\"].json || {};\nconst entrada = $node[\"Parsear entrada gestion\"].json || {};\nconst servicio = $node[\"Traer servicio cita\"].json || {};\n\nconst nueva_fecha = entrada.nueva_fecha;\nconst nueva_hora = entrada.nueva_hora;\n\nconst fecha_hora = (nueva_fecha && nueva_hora)\n  ? `${nueva_fecha}T${nueva_hora}:00-03:00`\n  : \"\";\n\nconst duracion = Number(\n  cita.duracion_minutos ||\n  servicio.duracion_minutos ||\n  60\n);\n\nconst profesional_id =\n  cita.profesional_id ||\n  servicio.profesional_id ||\n  \"\";\n\nif (!fecha_hora || !profesional_id) {\n  return [{\n    json: {\n      ...cita,\n      ...entrada,\n      profesional_id,\n      fecha_hora,\n      fecha_fin: \"\",\n      duracion_minutos: duracion\n    }\n  }];\n}\n\nconst inicio = new Date(fecha_hora);\nconst fin = new Date(inicio.getTime() + duracion * 60000);\n\nreturn [{\n  json: {\n    ...cita,\n    ...entrada,\n    profesional_id,\n    fecha_hora,\n    fecha_fin: fin.toISOString(),\n    duracion_minutos: duracion\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -96
+      ],
+      "id": "c7c66317-006e-4707-8dda-84d04473eaf6",
+      "name": "Calcular ventana reprogramacion"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "citas",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "estado",
+              "condition": "eq",
+              "keyValue": "confirmada"
+            },
+            {
+              "keyName": "profesional_id",
+              "condition": "eq",
+              "keyValue": "={{ $node[\"Calcular ventana reprogramacion\"].json.profesional_id }}"
+            },
+            {
+              "keyName": "fecha_hora",
+              "condition": "lt",
+              "keyValue": "={{ $node[\"Calcular ventana reprogramacion\"].json.fecha_fin }}"
+            },
+            {
+              "keyName": "fecha_fin",
+              "condition": "gt",
+              "keyValue": "={{ $node[\"Calcular ventana reprogramacion\"].json.fecha_hora }}"
+            },
+            {
+              "keyName": "id",
+              "condition": "neq",
+              "keyValue": "={{ $node[\"Buscar cita\"].json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        -144
+      ],
+      "id": "ba29aa71-5daf-4ef9-9948-42d3bdf21594",
+      "name": "Buscar citas de reprogramacion",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bc1261d4-cd09-45ec-9de4-c148cdf067a1",
+              "leftValue": "={{ !!$json.id }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1728,
+        -144
+      ],
+      "id": "aae64221-0d61-464d-9c11-0541956cbfd6",
+      "name": "¿Horario libre reprogramacion?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "citas",
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $node[\"Buscar cita\"].json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "fecha_hora",
+              "fieldValue": "={{ $node[\"Calcular ventana reprogramacion\"].json.fecha_hora }}"
+            },
+            {
+              "fieldId": "fecha_fin",
+              "fieldValue": "={{ $node[\"Calcular ventana reprogramacion\"].json.fecha_fin }}"
+            },
+            {
+              "fieldId": "duracion_minutos",
+              "fieldValue": "={{ $node[\"Calcular ventana reprogramacion\"].json.duracion_minutos }}"
+            },
+            {
+              "fieldId": "reprogramada_at",
+              "fieldValue": "={{ $now }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "confirmada"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1888,
+        -160
+      ],
+      "id": "056741a5-2305-4af4-99a7-07ebd8d001b9",
+      "name": "Actualizar cita reprogramada",
+      "alwaysOutputData": true,
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = (() => {\n  try {\n    return $node[\"Parsear entrada gestion\"].json || {};\n  } catch {\n    return {};\n  }\n})();\n\nconst cita = (() => {\n  try {\n    return $node[\"Buscar cita\"].json || {};\n  } catch {\n    return {};\n  }\n})();\n\nconst validacionHorario = (() => {\n  try {\n    return $node[\"Validar horario reprogramacion\"].json || null;\n  } catch {\n    return null;\n  }\n})();\n\nconst cancelada = (() => {\n  try {\n    return $node[\"Cancelar cita\"].json || null;\n  } catch {\n    return null;\n  }\n})();\n\nconst completada = (() => {\n  try {\n    return $node[\"Completar cita\"].json || null;\n  } catch {\n    return null;\n  }\n})();\n\nconst reprogramada = (() => {\n  try {\n    return $node[\"Actualizar cita reprogramada\"].json || null;\n  } catch {\n    return null;\n  }\n})();\n\nconst nuevaVentana = (() => {\n  try {\n    return $node[\"Calcular ventana reprogramacion\"].json || null;\n  } catch {\n    return null;\n  }\n})();\n\nconst accion = (entrada.accion || \"\").toString().trim().toLowerCase();\n\nfunction formatFechaHora(fechaHora) {\n  if (!fechaHora) return { fecha: \"\", hora: \"\" };\n\n  const d = new Date(fechaHora);\n  if (Number.isNaN(d.getTime())) return { fecha: \"\", hora: \"\" };\n\n  const fecha = d.toLocaleDateString(\"es-AR\", {\n    timeZone: \"America/Argentina/Buenos_Aires\",\n    year: \"numeric\",\n    month: \"2-digit\",\n    day: \"2-digit\",\n  });\n\n  const hora = d.toLocaleTimeString(\"es-AR\", {\n    timeZone: \"America/Argentina/Buenos_Aires\",\n    hour: \"2-digit\",\n    minute: \"2-digit\",\n    hour12: false,\n  });\n\n  return { fecha, hora };\n}\n\n// No existe cita\nif (!cita.id) {\n  return [{\n    json: {\n      ok: false,\n      respuesta: \"No encontré la cita indicada.\"\n    }\n  }];\n}\n\n// Estado no gestionable\nif (cita.estado && cita.estado !== \"confirmada\") {\n  return [{\n    json: {\n      ok: false,\n      respuesta: `La cita no se puede gestionar porque está en estado \"${cita.estado}\".`\n    }\n  }];\n}\n\n// Acción inválida\nif (![\"cancelar\", \"reprogramar\", \"completar\"].includes(accion)) {\n  return [{\n    json: {\n      ok: false,\n      respuesta: \"La acción solicitada no es válida.\"\n    }\n  }];\n}\n\n// Cancelar\nif (accion === \"cancelar\") {\n  if (cancelada && (cancelada.id || cancelada.estado === \"cancelada\")) {\n    return [{\n      json: {\n        ok: true,\n        respuesta: \"La cita fue cancelada correctamente.\"\n      }\n    }];\n  }\n\n  return [{\n    json: {\n      ok: false,\n      respuesta: \"No pude cancelar la cita. Intentá nuevamente.\"\n    }\n  }];\n}\n\n// Completar\nif (accion === \"completar\") {\n  if (completada && (completada.id || completada.estado === \"completada\")) {\n    return [{\n      json: {\n        ok: true,\n        respuesta: \"La cita fue marcada como completada.\"\n      }\n    }];\n  }\n\n  return [{\n    json: {\n      ok: false,\n      respuesta: \"No pude completar la cita. Intentá nuevamente.\"\n    }\n  }];\n}\n\n// Reprogramar\nif (accion === \"reprogramar\") {\n  if (validacionHorario && validacionHorario.horario_valido === false) {\n    return [{\n      json: {\n        ok: false,\n        respuesta: validacionHorario.motivo_horario || \"La nueva fecha u hora no es válida.\"\n      }\n    }];\n  }\n\n  if (!reprogramada || (!reprogramada.id && !reprogramada.fecha_hora)) {\n    return [{\n      json: {\n        ok: false,\n        respuesta: \"No pude reprogramar la cita. Es posible que ese horario ya esté ocupado o que haya un error en los datos.\"\n      }\n    }];\n  }\n\n  const fh = nuevaVentana?.fecha_hora || reprogramada?.fecha_hora || \"\";\n  const { fecha, hora } = formatFechaHora(fh);\n\n  return [{\n    json: {\n      ok: true,\n      respuesta: `La cita fue reprogramada correctamente para el ${fecha} a las ${hora}.`\n    }\n  }];\n}\n\n// Fallback\nreturn [{\n  json: {\n    ok: false,\n    respuesta: \"No pude procesar la solicitud.\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        -576
+      ],
+      "id": "2241a55c-56b2-4080-8e69-c433012fd95c",
+      "name": "Armar respuesta gestion cita"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2192,
+        -576
+      ],
+      "id": "4b4e57d6-c286-40fc-be3c-3579bd628feb",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "562f867b-dd39-4b60-957e-98d6c7add2f4",
+              "leftValue": "={{ $node[\"Parsear entrada gestion\"].json.accion }}",
+              "rightValue": "completar",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        -320
+      ],
+      "id": "bcfe7894-0b2b-46db-bb43-7d9d766449f9",
+      "name": "¿Accion completar?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "citas",
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $node[\"Buscar cita\"].json.id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado",
+              "fieldValue": "completada"
+            },
+            {
+              "fieldId": "completada_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        -336
+      ],
+      "id": "fc7e81ee-2a61-49bd-9769-42c77fd8c7c0",
+      "name": "Completar cita",
+      "credentials": {
+        "REDACTED": "Configurar credenciales propias en n8n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "Buscar la cita",
+        "height": 240,
+        "width": 768
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -208,
+        -480
+      ],
+      "typeVersion": 1,
+      "id": "952c334d-8324-4193-b006-726b005cffcd",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Cancelar la cita",
+        "height": 272,
+        "width": 368,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        560,
+        -640
+      ],
+      "typeVersion": 1,
+      "id": "37004ffa-62d2-4c19-93dd-0870bb54f4dd",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "Cita completada",
+        "height": 192,
+        "width": 448,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        720,
+        -368
+      ],
+      "typeVersion": 1,
+      "id": "84f6e459-14b7-42ba-a609-6cc57f847c06",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "Cita reprogramada",
+        "height": 256,
+        "width": 1296,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        720,
+        -176
+      ],
+      "typeVersion": 1,
+      "id": "886cf9ae-2ff7-4da9-b1b0-e70c76cc4ec0",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "Respuesta a todas las citas",
+        "height": 224,
+        "width": 480,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1904,
+        -624
+      ],
+      "typeVersion": 1,
+      "id": "6dd880c8-bd26-4643-82e7-fd0aff68e8e8",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "95a4b6f6-06c9-4c79-98a2-3bf89db00ee3",
+              "leftValue": "={{ $node[\"Buscar cita\"].json.estado === \"confirmada\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        -464
+      ],
+      "id": "34edcd49-96d7-4fe0-83f1-52e344b167ea",
+      "name": "¿Cita gestionable?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nconst fecha_hora = data.fecha_hora;\nif (!fecha_hora) {\n  return [{ json: { ...data, horario_valido: false, motivo_horario: \"Faltan fecha y hora.\" } }];\n}\n\nconst d = new Date(fecha_hora);\nconst day = d.getDay();\nconst minutes = d.getHours() * 60 + d.getMinutes();\n\nif (day === 0) {\n  return [{ json: { ...data, horario_valido: false, motivo_horario: \"El salón no abre los domingos.\" } }];\n}\n\nif (day >= 1 && day <= 5 && (minutes < 540 || minutes > 1200)) {\n  return [{ json: { ...data, horario_valido: false, motivo_horario: \"Atendemos de lunes a viernes de 09:00 a 20:00.\" } }];\n}\n\nif (day === 6 && (minutes < 540 || minutes > 1020)) {\n  return [{ json: { ...data, horario_valido: false, motivo_horario: \"Los sábados atendemos de 09:00 a 17:00.\" } }];\n}\n\nconst mins = d.getMinutes();\nif (![0, 30].includes(mins)) {\n  return [{ json: { ...data, horario_valido: false, motivo_horario: \"Los turnos solo pueden reprogramarse en bloques de 30 minutos.\" } }];\n}\n\nreturn [{ json: { ...data, horario_valido: true, motivo_horario: \"\" } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -96
+      ],
+      "id": "c38bdfc3-97ef-41ec-a9cf-a87c523ed972",
+      "name": "Validar horario reprogramacion"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "675afe5b-21ad-4939-bc66-3cdcf87ac69b",
+              "leftValue": "={{ $json.horario_valido === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1424,
+        -96
+      ],
+      "id": "a149b42e-fe36-4e70-a130-cf176e6f05cf",
+      "name": "¿Horario de negocio válido?"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gestion Cita": {
+      "main": [
+        [
+          {
+            "node": "Parsear entrada gestion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear entrada gestion": {
+      "main": [
+        [
+          {
+            "node": "Buscar cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar cita": {
+      "main": [
+        [
+          {
+            "node": "¿Existe cita?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Existe cita?": {
+      "main": [
+        [
+          {
+            "node": "¿Cita gestionable?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta gestion cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Accion cancelar?": {
+      "main": [
+        [
+          {
+            "node": "Cancelar cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Accion completar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Datos reprogramacion completos?": {
+      "main": [
+        [
+          {
+            "node": "Traer servicio cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta gestion cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traer servicio cita": {
+      "main": [
+        [
+          {
+            "node": "Calcular ventana reprogramacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular ventana reprogramacion": {
+      "main": [
+        [
+          {
+            "node": "Validar horario reprogramacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar citas de reprogramacion": {
+      "main": [
+        [
+          {
+            "node": "¿Horario libre reprogramacion?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Horario libre reprogramacion?": {
+      "main": [
+        [
+          {
+            "node": "Actualizar cita reprogramada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta gestion cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar cita reprogramada": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta gestion cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar respuesta gestion cita": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Accion completar?": {
+      "main": [
+        [
+          {
+            "node": "Completar cita",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Datos reprogramacion completos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Completar cita": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta gestion cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancelar cita": {
+      "main": [
+        [
+          {
+            "node": "Armar respuesta gestion cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Cita gestionable?": {
+      "main": [
+        [
+          {
+            "node": "¿Accion cancelar?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta gestion cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar horario reprogramacion": {
+      "main": [
+        [
+          {
+            "node": "¿Horario de negocio válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Horario de negocio válido?": {
+      "main": [
+        [
+          {
+            "node": "Buscar citas de reprogramacion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Armar respuesta gestion cita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "REDACTED_VERSION_ID",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "REDACTED_INSTANCE_ID"
+  },
+  "id": "REDACTED_WORKFLOW_ID",
+  "tags": []
+}
